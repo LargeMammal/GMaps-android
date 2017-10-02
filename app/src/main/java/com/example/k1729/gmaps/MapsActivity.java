@@ -11,6 +11,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -74,16 +75,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return json;
         }
 
+        protected float getColor(String color) {
+            switch (color) {
+                case "Kulta":
+                case "Kulta/Etu":
+                    return BitmapDescriptorFactory.HUE_YELLOW;
+                case "Etu":
+                    return BitmapDescriptorFactory.HUE_GREEN;
+                default :
+                    return BitmapDescriptorFactory.HUE_AZURE;
+            }
+        }
+
+        protected String getDescription(JSONObject gc) {
+            try {
+                return gc.getString("address") + "\n" + gc.getString("phone") + "\n" + gc.getString("email") + "\n" + gc.getString("web");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
         protected void onPostExecute(JSONObject json) {
             StringBuffer text = new StringBuffer("");
             try {
                 courses = json.getJSONArray("courses");
+
                 for (int i=0; i < courses.length(); i++) {
                     JSONObject gc = courses.getJSONObject(i);
                     // create one marker
                     final Marker m = mMap.addMarker(new MarkerOptions()
                             .position(new LatLng(gc.getDouble("lat"), gc.getDouble("lng")))
-                            .title(gc.getString("course")));
+                            .title(gc.getString("course"))
+                            .icon(BitmapDescriptorFactory.defaultMarker(getColor(gc.getString("type"))))
+                            .snippet(getDescription(gc))
+                    );
                     // marker listener
                     mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                         @Override
@@ -120,7 +146,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Add a marker in ITC
         LatLng ITC = new LatLng(62.2416223, 25.7597309);
         // point to jamk and zoom a little
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(ITC, 7));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(ITC, 5));
         fetchData();
     }
 }
