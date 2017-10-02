@@ -15,6 +15,10 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -36,33 +40,65 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
     }
 
-    public void fetchData(View view) {
-
+    public void fetchData() {
+        String url = "http://ptm.fi/materials/golfcourses/golf_courses.json";
+        FetchDataTask task = new FetchDataTask();
+        task.execute(url);
     }
 
-    class FetchDataTask extends AsyncTask<String, Void, String> {
+    class FetchDataTask extends AsyncTask<String, Void, JSONObject> {
+        private JSONArray courses;
+
         @Override
-        protected String doInBackground(String... urls) {
+        protected JSONObject doInBackground(String... urls) {
                 HttpURLConnection urlConnection = null;
-                try {
-                    URL url = new URL(urls[0]);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-                    StringBuilder stringBuilder = new StringBuilder();
-                    String line;
-                    while ((line = bufferedReader.readLine()) != null) {
-                        stringBuilder.append(line).append("\n");
-                    }
-                    bufferedReader.close();
-                    return stringBuilder.toString();
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
+            JSONObject json = null;
+            try {
+                URL url = new URL(urls[0]);
+                urlConnection = (HttpURLConnection) url.openConnection();
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                StringBuilder stringBuilder = new StringBuilder();
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    stringBuilder.append(line).append("\n");
+                }
+                bufferedReader.close();
+                json = new JSONObject(stringBuilder.toString());
+            } catch (IOException e) {
+            e.printStackTrace();
+            } catch (JSONException e) {
                 e.printStackTrace();
             } finally {
-                if (urlConnection != null) urlConnection.disconnect();
+            if (urlConnection != null) urlConnection.disconnect();
             }
-            return null;
+            return json;
+        }
+
+        protected void onPostExecute(JSONObject json) {
+            StringBuffer text = new StringBuffer("");
+            try {
+                courses = json.getJSONArray("courses");
+                for (int i=0; i < courses.length(); i++) {
+                    JSONObject gc = courses.getJSONObject(i);
+                    // create one marker
+                    final Marker m = mMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(gc.getDouble("lat"), gc.getDouble("lng")))
+                            .title(gc.getString("course")));
+                    // marker listener
+                    mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                        @Override
+                        public boolean onMarkerClick(final Marker marker) {
+                            if (marker.equals(m)){
+                                Toast.makeText(getApplicationContext(), "Marker = " + marker.getTitle(), Toast.LENGTH_SHORT).show();
+                                return true;
+                            }
+                            return false;
+                        }
+                    });
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -83,23 +119,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         // Add a marker in ITC
         LatLng ITC = new LatLng(62.2416223, 25.7597309);
-        // create one marker
-        final Marker ict = mMap.addMarker(new MarkerOptions()
-                .position(ITC)
-                .title("JAMK/ITC"));
         // point to jamk and zoom a little
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(ITC, 14));
-        // marker listener
-        /*
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(final Marker marker) {
-                if (marker.equals(ict)){
-                    Toast.makeText(getApplicationContext(), "Marker = " + marker.getTitle(), Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                return false;
-            }
-        });*/
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(ITC, 7));
+        fetchData();
     }
 }
